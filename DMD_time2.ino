@@ -43,6 +43,20 @@
 #include <DMD.h>        //
 #include <TimerOne.h>   //
 #include "Arial_black_16.h"
+#include "pitches.h"
+
+const int buttonPin = 3;     // the number of the pushbutton pin
+int buttonState = 0;         // variable for reading the pushbutton status
+
+// notes in the melody:
+int melody[] = {
+  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+};
+
+// note durations: 4 = quarter note, 8 = eighth note, etc.:
+int noteDurations[] = {
+  4, 8, 8, 4, 4, 4, 4, 4
+};
 
 //Fire up the DMD library as dmd
 DMD dmd(1, 1);
@@ -99,6 +113,33 @@ int concat(int minutes, int seconds)
   return c;
 }
 
+void playMelody() {
+  // iterate over the notes of the melody:
+  for (int thisNote = 0; thisNote < 8; thisNote++) {
+
+    // to calculate the note duration, take one second
+    // divided by the note type.
+    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    int noteDuration = 1000 / noteDurations[thisNote];
+    tone(2, melody[thisNote], noteDuration);
+
+    // to distinguish the notes, set a minimum time between them.
+    // the note's duration + 30% seems to work well:
+    int pauseBetweenNotes = noteDuration * 1.30;
+    delay(pauseBetweenNotes);
+    // stop the tone playing:
+    noTone(2);
+  }
+}
+
+void flashNumbers(int number){
+  for (int i = 0; i <= 3; i++) {
+    dmd.clearScreen(true);
+    delay(500);
+    ShowClockNumbers(number, true );
+    delay(500);
+  }
+}
 
 /*--------------------------------------------------------------------------------------
   setup
@@ -107,6 +148,9 @@ int concat(int minutes, int seconds)
 void setup(void)
 {
   Serial.begin(9600);
+
+  // initialize the pushbutton pin as an input:
+  pinMode(buttonPin, INPUT);
 
   //initialize TimerOne's interrupt/CPU usage used to scan and refresh the display
   Timer1.initialize( 5000 );           //period in microseconds to call ScanDMD. Anything longer than 5000 (5ms) and you can see flicker.
@@ -124,15 +168,33 @@ void setup(void)
   --------------------------------------------------------------------------------------*/
 void loop(void)
 {
-  unsigned int timeToPresent = 9; //in minutes, no more than "9"
+  unsigned int timeToPresent = 0; //in minutes, no more than "9"
 
-  for (int minutes = timeToPresent; minutes >= 0; minutes--) {
-    for (int seconds = 59; seconds >= 0; seconds--) {
-      
-      int timeLeft = concat(minutes, seconds);
-      ShowClockNumbers(timeLeft, true );
-      delay(1000);
-    }
-  }
+  // read the state of the pushbutton value:
+  buttonState = digitalRead(buttonPin);
+  
+  // check if the pushbutton is pressed.
+  // if it is, the buttonState is HIGH:
+  if (buttonState == HIGH) {
+  // turn timer on:
+      for (int minutes = timeToPresent; minutes >= 0; minutes--) {
+        for (int seconds = 5; seconds >= 0; seconds--) {
+          
+          int timeLeft = concat(minutes, seconds);
+                
+          ShowClockNumbers(timeLeft, true );
+          delay(1000);
+          
+          //When time's up, make it obvious!
+          if(timeLeft == 000){
+            playMelody();
+            flashNumbers(timeLeft);
+          }
+        }
+      }      
+  } else {
+  // turn timer off:
+    dmd.clearScreen(true);
+  }  
 }
 
